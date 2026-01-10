@@ -13,8 +13,8 @@ async def on_ready():
 @bot.command(name='hello')
 async def hello(ctx):
     """Simple test command"""
-    await ctx.send('Hello! I am your friendly Catholic Discord bot. Did you pray today?')
+    await ctx.send('Howdy! I am your friendly Catholic Discord bot. Did you pray today?')
 
-#Rune the bot
+# Run the bot
 if __name__ == '__main__':
     bot.run(config.DISCORD_TOKEN)

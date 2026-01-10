@@ -4,8 +4,8 @@ A discord server bot that is attempt to integrate AI functionality with the user
 
 ## Features (Pending)
 - AI-powered responses using OpenAI. This will allow for smarter responses.
-- Catholic prayers and daily readings
-- Saint information, feast days, and holy days of obligation reminders
+- Catholic prayers and daily readings as per tge customer's request
+- Saint information, feast days, and holy days of obligation reminders as per customers request
 
 ## Tech Stack
 - Python 3.14.2
