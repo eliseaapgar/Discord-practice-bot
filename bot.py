@@ -3,7 +3,7 @@ from discord.ext import commands
 import config 
 
 # Create bot instance
-bot = commands.Bot(command_prefix=config.COMMAND_PREFIX, intents=discord,Intents.default())
+bot = commands.Bot(command_prefix=config.COMMAND_PREFIX, intents=discord.Intents.default())
 
 @bot.event
 async def on_ready():
