@@ -117,7 +117,7 @@ def scrape_catholic():
             for p in paragraphs:
                 text = p.get_text().strip()
                 # Skip paragraphs with navigation keywords
-                if any(word in text.lower() for word in ['subscribe', 'printable', 'shop', 'copyright', 'author and publisher']):
+                if any(word in text.lower() for word in ['subscribe', 'printable', 'shop', 'copyright', 'author and publisher', 'tax-deductible', 'tax exemption', 'not-for-profit', 'federal tax', 'catholic voice foundation']):
                     continue
                 # Only include substantial paragraphs (more than 50 characters)
                 if len(text) > 50:
