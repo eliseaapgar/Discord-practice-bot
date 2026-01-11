@@ -128,20 +128,20 @@ def scrape_catholic():
             
             if filtered_paragraphs:
                 additional_info = ' '.join(filtered_paragraphs)
-    
+            
                 # Truncate smartly at sentence boundary if too long
                 max_length = 1500
                 if len(additional_info) > max_length:
-                     # Find the last period within the limit
-                     truncated = additional_info[:max_length]
-                     last_period = truncated.rfind('.')
-        
-                if last_period > 0:
-                     # Cut at the last complete sentence
-                     additional_info = additional_info[:last_period + 1]
-                else:
-                     # No period found, just cut and add ellipsis
-                    additional_info = truncated + "..."
+                    # Find the last period within the limit
+                    truncated = additional_info[:max_length]
+                    last_period = truncated.rfind('.')
+                
+                    if last_period > 0:
+                        # Cut at the last complete sentence
+                        additional_info = additional_info[:last_period + 1]
+                    else:
+                        # No period found, just cut and add ellipsis
+                        additional_info = truncated + "..."
                 
         if saint_name:
             return {
