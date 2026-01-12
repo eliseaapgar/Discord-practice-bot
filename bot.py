@@ -106,6 +106,39 @@ def scrape_catholic():
         saint_name = name_tag.get_text().strip() if name_tag else None
         
         print(f"Saint name: {saint_name}")
+
+
+         # Find the saint image (skip placeholders)
+        image_url = None
+        image_tags = saint_soup.find_all('img', alt=lambda alt: alt and 'Image of' in alt)
+
+        for image_tag in image_tags:
+                # Try data-src first (for lazy-loaded images)
+                image_src = image_tag.get('data-src') or image_tag.get('src')
+
+
+                # Skip if no source found
+                if not image_src:
+                    continue
+
+                # Skip placeholder images
+                if image_src.startswith('data:'):
+                    continue
+
+
+                # Build complete URL if relative
+                if not image_src.startswith('http'):
+                    image_url = f"https://www.catholic.org{image_src}"
+                else:
+                    image_url = image_src
+
+
+                # Found a valid image, stop looking
+                break
+        
+
+        print(f"Image URL: {image_url}")
+        
         
         # Get the description/bio
         paragraphs = saint_soup.find_all('p')
@@ -142,11 +175,13 @@ def scrape_catholic():
                     else:
                         # No period found, just cut and add ellipsis
                         additional_info = truncated + "..."
-                
+
+                      
         if saint_name:
             return {
                 'name': saint_name,
                 'additional_info': additional_info,
+                'image_url': image_url,
                 'source': 'Catholic.org'
             }
         
@@ -178,35 +213,35 @@ async def saint(ctx):
             await ctx.send('Could not retrieve Saint of the Day. Please try again later.')
             return
         
-        message = "**Saint of the Day**\n\n"
-
-        # If we have Franciscan data, use it as primary
-        if franciscan_data:
-            message += f"**{franciscan_data['name']}**\n"
-            message += f"{franciscan_data['description']}\n\n"
-            message += f"*Source: {franciscan_data['source']}*\n"
+        # Determine which data to use as primary
+        primary_data = franciscan_data if franciscan_data else catholic_data
         
-        # If we ONLY have Catholic data (no Franciscan), use it as primary
-        elif catholic_data and not franciscan_data:
-            message += f"**{catholic_data['name']}**\n"
-            if catholic_data.get('additional_info'):
-                message += f"{catholic_data['additional_info']}\n\n"
-            message += f"*Source: {catholic_data['source']}*\n"
+        # Create the embed
+        embed = discord.Embed(
+            title="Saint of the Day",
+            color=discord.Color.blue()
+        )
         
-        # If we have BOTH sources and different saints
-        if franciscan_data and catholic_data:
-            if catholic_data['name'] != franciscan_data.get('name'):
-                message += f"\n**Additional Saint Today:**\n"
-                message += f"**{catholic_data['name']}**\n"
-                if catholic_data.get('additional_info'):
-                    message += f"{catholic_data['additional_info']}\n\n"
-                message += f"*Source: {catholic_data['source']}*\n"
+        # Add the saint name as a field
+        embed.add_field(
+            name=primary_data['name'],
+            value=primary_data.get('description') or primary_data.get('additional_info', 'No description available.'),
+            inline=False
+        )
         
-        await ctx.send(message)
+        # Add the image if available
+        if primary_data.get('image_url'):
+            embed.set_image(url=primary_data['image_url'])
+        
+        # Add source in footer
+        embed.set_footer(text=f"Source: {primary_data['source']}")
+        
+        # Send the embed
+        await ctx.send(embed=embed)
     
     except Exception as e:
         await ctx.send("An error occurred while fetching saint information.")
-        print(f"Saint command error: {e}")    
+        print(f"Saint command error: {e}")   
   
 @bot.command(name='testfranciscan')
 async def test_franciscan(ctx):
