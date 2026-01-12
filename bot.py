@@ -1,9 +1,10 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import config 
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import date
+
 
 
 # Create bot instance with intents
@@ -11,6 +12,97 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=config.COMMAND_PREFIX, intents=intents)
 
+
+# Cache for storing saint data to avoid repeated scraping
+saint_cache = {
+    'data': None,
+    'date': None
+}
+
+
+# Helper function to Get Today's Saint
+def get_todays_saint():
+    """Get today's saint data, from cache first if available"""
+    from datetime import date
+
+
+    today = date.today()
+
+    # Check if cache for today
+    if saint_cache['date'] == today and saint_cache['data']:
+        print(f"Using cached saint data for {today}")
+        return saint_cache['data']
+    
+
+    # Cache is empyty or outdated, scrape fresh data
+    print(f"Scraping new saint data for {today}")
+
+
+    # Try both sources
+    franciscan_data = scrape_franciscan()
+    catholic_data = scrape_catholic()
+
+
+    # Determine which data to use
+    primary_data = franciscan_data if franciscan_data else catholic_data
+
+
+    if primary_data:
+        # Update cache with new data
+        saint_cache['data'] = primary_data
+        saint_cache['date'] = today
+        print(f"Cached new saint data for {today}")
+        return primary_data
+    
+
+    return None
+
+@tasks.loop(hours=24)
+async def post_daily_saint():
+    """Post daily saint of the Day at specific time"""
+    # Get saint data (will use cache if already fectched)
+    saint_data = get_todays_saint()
+
+
+    if not saint_data:
+        print("Could not retrieve Saint of the Day for daily post.")
+        return
+    
+
+    # Create embed
+    embed = discord.Embed(
+        title="Saint of the Day",
+        color=discord.Color.gold()
+    )
+
+
+    embed.add_field(
+        name=saint_data['name'],
+        value=saint_data.get('description') or saint_data.get('additional_info', 'No description available.'),
+        inline=False
+    )
+
+
+    if saint_data.get('image_url'):
+        embed.set_image(url=saint_data['image_url'])
+
+
+    embed.set_footer(text=f"Source: {saint_data['source']}")
+
+
+    # Send to Saint of the Day channel
+    channel_id = 1459754861997461596 # Replace with your channel ID
+    channel = bot.get_channel(channel_id)
+
+
+    if channel:
+        await channel.send(embed=embed)
+        print(f"Posted daily Saint: {saint_data['name']}")
+    else:
+        print(f"Could not find channel with ID {channel_id})")
+
+
+# Helper functions for scraping
 def scrape_franciscan():
     """Scrape saint information from Franciscan Media"""
     try:
@@ -195,6 +287,11 @@ def scrape_catholic():
 async def on_ready():
     """Called when bot successfully connects to Discord"""
     print(f'{bot.user} has connected to Discord!')
+    
+    # Start the daily saint posting task
+    if not post_daily_saint.is_running():
+        post_daily_saint.start()
+        print("Daily saint posting task started")
 
 @bot.command(name='hello')
 async def hello(ctx):
@@ -203,46 +300,40 @@ async def hello(ctx):
 
 @bot.command(name='saint')
 async def saint(ctx):
-    """Gets today's Saint of the Day from multiple sources"""
+    """Gets today's Saint of the Day (uses cache to avoid repeated scraping)"""
     try:
         async with ctx.typing():
-            franciscan_data = scrape_franciscan()
-            catholic_data = scrape_catholic()
+            # Use the caching function instead of scraping directly
+            primary_data = get_todays_saint()
 
-        if not franciscan_data and not catholic_data:
+        if not primary_data:
             await ctx.send('Could not retrieve Saint of the Day. Please try again later.')
             return
         
-        # Determine which data to use as primary
-        primary_data = franciscan_data if franciscan_data else catholic_data
-        
-        # Create the embed
+        # Create the embed (same as before)
         embed = discord.Embed(
             title="Saint of the Day",
             color=discord.Color.blue()
         )
         
-        # Add the saint name as a field
         embed.add_field(
             name=primary_data['name'],
             value=primary_data.get('description') or primary_data.get('additional_info', 'No description available.'),
             inline=False
         )
         
-        # Add the image if available
         if primary_data.get('image_url'):
             embed.set_image(url=primary_data['image_url'])
         
-        # Add source in footer
         embed.set_footer(text=f"Source: {primary_data['source']}")
         
-        # Send the embed
         await ctx.send(embed=embed)
     
     except Exception as e:
         await ctx.send("An error occurred while fetching saint information.")
-        print(f"Saint command error: {e}")   
+        print(f"Saint command error: {e}")  
   
+
 @bot.command(name='testfranciscan')
 async def test_franciscan(ctx):
     """Test Franciscan scraper"""
