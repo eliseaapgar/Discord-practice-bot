@@ -38,12 +38,13 @@ def get_todays_saint():
     print(f"Scraping new saint data for {today}")
 
 
-    # Try both sources
+    # Try both sources - Franciscan Media (Currently limited by JS rending,
+    # see scrape_franciscan docstring) and Catholic.org (no issues)
     franciscan_data = scrape_franciscan()
     catholic_data = scrape_catholic()
 
 
-    # Determine which data to use
+    # Use Franciscan if able, otherwise fall back to Catholic.org
     primary_data = franciscan_data if franciscan_data else catholic_data
 
 
@@ -104,47 +105,99 @@ async def post_daily_saint():
 
 # Helper functions for scraping
 def scrape_franciscan():
-    """Scrape saint information from Franciscan Media"""
+    """Scrape saint information from Franciscan Media
+
+    
+    CURRENT STATUS: Partially working - HTTP requests are successful (200) however content extraction fails due to JavaScript rendering.
+
+
+    TECHNICAL NOTES: Franciscan media uses client-side JacaScript rendering. The initial HTTP response contains minimal HTML with JavaScript code, but the saint content that is needed is dynamically loaded after JavaScript executes. The currents request library  only retrieves the initial HTML and does not execute JavaScript, resulting in an empty DOM with no h1/h2 tags or content divs to parse upon investigation.
+
+
+    VERIFIED: Bot detection was successful in bypassing comprehensive browser headers, returns 200 status code.
+
+
+    SOLUTION NEEDED: Headless browser automation tool (Selenium, Playwright) to fully render the page and extract the dynamically loaded content. Would increase scraping times significantly (3-5 sec compared to the current <1 second)
+
+
+    FALLBACK BEHAVIOR: Franciscan funtion returns "Non" when extraction fails, allowing fallback to Catholic.org as primary data source.
+
+
+    FOR ACTION: Implement Selenium-based scraping for JavaScript rended contet.
+    See: https://selenium-python.readthedocs.io/ for reference.
+    """
+
     try:
         url = 'https://www.franciscanmedia.org/saint-of-the-day/'
         
+        # More comprehensive browser headers
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
         }
         
-        response = requests.get(url, headers=headers, timeout=5)
+        response = requests.get(url, headers=headers, timeout=10)
         
         print(f"Franciscan status: {response.status_code}")
         
         if response.status_code != 200:
+            print(f"Franciscan returned non-200 status, skipping this source")
             return None
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Debug: show what h1 tags exist
+        # Debug: Show what h1 and h2 tags exist
         all_h1 = soup.find_all('h1')
-        print(f"Found {len(all_h1)} h1 tags")
-        for h1 in all_h1:
-            print(f"  h1: {h1.get('class')} - {h1.get_text()[:50]}")
+        all_h2 = soup.find_all('h2')
+        print(f"Franciscan: Found {len(all_h1)} h1 tags and {len(all_h2)} h2 tags")
         
+        for h1 in all_h1:
+            print(f"  h1 class='{h1.get('class')}' text='{h1.get_text()[:80]}'")
+        
+        for h2 in all_h2[:3]:  # Just show first 3 h2 tags
+            print(f"  h2 class='{h2.get('class')}' text='{h2.get_text()[:80]}'")
+        
+        # Try to find the saint's name with our current selector
         name_tag = soup.find('h1', class_='entry-title')
-        print(f"Name tag with class='entry-title': {name_tag}")
+        print(f"Found name_tag with class='entry-title': {name_tag is not None}")
         
         saint_name = name_tag.get_text().strip() if name_tag else None
         
+        # Try to find the description with our current selector
         content_div = soup.find('div', class_='entry-content')
-        print(f"Content div found: {content_div is not None}")
+        print(f"Found content_div with class='entry-content': {content_div is not None}")
         
         description = content_div.get_text().strip() if content_div else None
         
         if saint_name and description:
-            description = description[:500] + "..." if len(description) > 500 else description
+            # Truncate at sentence boundary like we do for Catholic.org
+            max_length = 1500
+            if len(description) > max_length:
+                truncated = description[:max_length]
+                last_period = truncated.rfind('.')
+                
+                if last_period > 0:
+                    description = description[:last_period + 1]
+                else:
+                    description = truncated + "..."
+            
             return {
                 'name': saint_name,
                 'description': description,
                 'source': 'Franciscan Media'
             }
         
+        print("Franciscan: Could not find saint name or description with current selectors")
         return None
         
     except Exception as e:
@@ -154,7 +207,7 @@ def scrape_franciscan():
 def scrape_catholic():
     """Scrape saint information from Catholic.org"""
     try:
-        # Step 1: Get the Saint of the Day landing page
+        # Get the Saint of the Day landing page
         landing_url = 'https://www.catholic.org/saints/sofd.php'
         
         headers = {
