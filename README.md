@@ -10,7 +10,7 @@ A discord server bot that is attempting to integrate AI functionality with the u
 ## Tech Stack
 - Python 3.14.2
 - discord.py
-- OpenAI API
+
 
 ## Status
-Work in progress. Learning project to familiarize and solidify Python skills and demonstrate effective API integration. Hobby.
+Work in progress. Learning project to familiarize and solidify Python skills and demonstrate effective API integration; AI assistance and prompt writing was used for this project creation. Hobby.
