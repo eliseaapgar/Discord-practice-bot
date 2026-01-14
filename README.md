@@ -13,4 +13,4 @@ A discord server bot that is attempting to integrate AI functionality with the u
 
 
 ## Status
-Work in progress. Learning project to familiarize and solidify Python skills and demonstrate effective API integration; AI assistance and prompt writing was used for this project creation. Hobby.
+Work in progress. Learning project to familiarize and solidify Python skills and demonstrate effective API integration; AI assistance and prompt writing was involved in this project. Hobby.
